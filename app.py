@@ -1,28 +1,83 @@
 import os
-from flask import Flask, render_template, request, jsonify
+import datetime
+from flask import Flask, render_template, request, jsonify, url_for
 from flask_cors import CORS
+from pymongo import MongoClient
 
 app = Flask(__name__)
 CORS(app)
 
+# 1. CONNEXION MONGODB
+# Récupère le lien que tu as mis dans les variables d'environnement de Render
+MONGO_URI = os.environ.get('MONGODB_URI')
+client = MongoClient(MONGO_URI)
+db = client.sgold_database
+users_col = db.users
+
 @app.route('/')
 def home():
-    # C'est ici que ton site s'affichera
     return render_template('index.html')
 
 @app.route('/api/shake-earn', methods=['POST'])
 def shake_earn():
-    data = request.json
-    wallet = data.get('walletAddress')
-    
-    # Pour le test avant d'ajouter la DB et Solana :
-    print(f"Shake reçu de : {wallet}")
-    return jsonify({
-        "success": True, 
-        "message": "Shake détecté !", 
-        "streak": 1,
-        "amount": 1000
-    })
+    try:
+        data = request.json
+        wallet = data.get('walletAddress')
+        
+        if not wallet:
+            return jsonify({"success": False, "message": "Wallet missing"}), 400
+
+        # On récupère la date du jour (format YYYY-MM-DD)
+        today = datetime.date.today()
+        today_str = today.isoformat()
+        yesterday_str = (today - datetime.timedelta(days=1)).isoformat()
+
+        # 2. RECHERCHE DE L'UTILISATEUR
+        user = users_col.find_one({"wallet": wallet})
+
+        if not user:
+            # Premier shake à vie pour ce wallet
+            new_user = {
+                "wallet": wallet,
+                "last_shake": today_str,
+                "streak": 1,
+                "total_earned": 1000
+            }
+            users_col.insert_one(new_user)
+            return jsonify({"success": True, "streak": 1, "amount": 1000})
+
+        # 3. VÉRIFICATION : DÉJÀ FAIT AUJOURD'HUI ?
+        if user["last_shake"] == today_str:
+            return jsonify({"success": False, "message": "Already shaken today! Come back tomorrow."})
+
+        # 4. CALCUL DU STREAK (SÉRIE)
+        new_streak = 1
+        if user["last_shake"] == yesterday_str:
+            new_streak = user["streak"] + 1
+        
+        # Calcul du gain (ex: 1000 de base + 100 par jour de streak)
+        reward = 1000 + (new_streak * 100)
+
+        # 5. MISE À JOUR DANS LA BASE
+        users_col.update_one(
+            {"wallet": wallet},
+            {
+                "$set": {"last_shake": today_str, "streak": new_streak},
+                "$inc": {"total_earned": reward}
+            }
+        )
+
+        return jsonify({
+            "success": True, 
+            "streak": new_streak, 
+            "amount": reward
+        })
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"success": False, "message": "Server error"}), 500
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    # Render utilise la variable d'environnement PORT
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
