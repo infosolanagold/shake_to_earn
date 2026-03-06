@@ -2,54 +2,214 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SGOLD - Shake to Earn</title>
     <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.91.7/lib/index.iife.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
+        :root {
+            --gold: #FFD700;
+            --dark-gold: #B8860B;
+            --bg-black: #0a0a0a;
+        }
+
         body {
-            background-color: #000;
-            color: gold;
-            font-family: 'Arial', sans-serif;
+            background-color: var(--bg-black);
+            color: white;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
-            margin: 0;
+            overflow: hidden;
+        }
+
+        .card {
+            background: linear-gradient(145deg, #1a1a1a, #000);
+            border: 2px solid var(--gold);
+            border-radius: 25px;
+            padding: 40px;
             text-align: center;
+            max-width: 320px;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.15);
+            position: relative;
         }
-        .container {
-            border: 2px solid gold;
-            padding: 30px;
+
+        .robot-img {
+            width: 180px;
+            height: auto;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 10px var(--gold));
+            transition: transform 0.1s;
+        }
+
+        h1 {
+            color: var(--gold);
+            font-size: 1.8rem;
+            margin: 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .streak-badge {
+            background: var(--gold);
+            color: black;
+            padding: 5px 15px;
             border-radius: 20px;
-            background: rgba(255, 215, 0, 0.05);
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            display: inline-block;
         }
+
         button {
-            background: gold;
+            background: linear-gradient(to bottom, var(--gold), var(--dark-gold));
             color: black;
             border: none;
             padding: 15px 30px;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: bold;
-            border-radius: 10px;
+            border-radius: 50px;
             cursor: pointer;
-            margin-top: 20px;
-            transition: transform 0.2s;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            text-transform: uppercase;
         }
-        button:active { transform: scale(0.95); }
-        #status { margin-top: 20px; font-size: 1.1rem; color: #fff; }
-        .shaking-active { animation: shake 0.5s infinite; }
-        @keyframes shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            10% { transform: translate(-1px, -2px) rotate(-1deg); }
-            20% { transform: translate(-3px, 0px) rotate(1deg); }
-            100% { transform: translate(1px, -2px) rotate(-1deg); }
+
+        button:disabled {
+            background: #333;
+            color: #777;
+            cursor: not-allowed;
+        }
+
+        #status-text {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #aaa;
+            height: 20px;
+        }
+
+        /* Animation de secousse */
+        .shaking {
+            animation: shake-anim 0.2s cubic-bezier(.36,.07,.19,.97) infinite;
+        }
+
+        @keyframes shake-anim {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
         }
     </style>
 </head>
 <body>
 
-    <div class="container" id="main-ui">
-        <h1>SHAKE & EAR
+    <div class="card" id="app-card">
+        <img src="https://via.placeholder.com/180x180/000000/FFD700?text=SGOLD+ROBOT" id="robot" class="robot-img" alt="SGOLD Robot">
+        
+        <div id="streak-info" class="streak-badge">READY TO SHAKE</div>
+        
+        <h1>SOLANA GOLD</h1>
+        <p style="font-size: 0.8rem; color: #888;">Utility Guard Scanner Active 🛡️</p>
+
+        <button id="main-btn">Connect Wallet</button>
+
+        <div id="status-text">Phantom wallet required</div>
+    </div>
+
+    <script>
+        let wallet = null;
+        let isShaking = false;
+        let lastUpdate = 0;
+        let lastX, lastY, lastZ;
+        const THRESHOLD = 15;
+
+        const mainBtn = document.getElementById('main-btn');
+        const statusText = document.getElementById('status-text');
+        const robot = document.getElementById('robot');
+        const streakInfo = document.getElementById('streak-info');
+        const card = document.getElementById('app-card');
+
+        // 1. Connexion Wallet
+        mainBtn.addEventListener('click', async () => {
+            if (!wallet) {
+                if ("solana" in window) {
+                    try {
+                        const resp = await window.solana.connect();
+                        wallet = resp.publicKey.toString();
+                        mainBtn.innerText = "Enable Shake Mode";
+                        statusText.innerText = "Connected: " + wallet.slice(0,6) + "...";
+                    } catch (err) { console.error(err); }
+                } else { alert("Install Phantom!"); }
+            } else {
+                // 2. Demander permission sensors
+                requestSensors();
+            }
+        });
+
+        function requestSensors() {
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission()
+                    .then(state => {
+                        if (state === 'granted') startShaking();
+                    });
+            } else {
+                startShaking();
+            }
+        }
+
+        function startShaking() {
+            window.addEventListener('devicemotion', onMotion);
+            mainBtn.disabled = true;
+            mainBtn.innerText = "SHAKE NOW!";
+            streakInfo.innerText = "STREAK: DAY 1";
+            statusText.innerText = "Waiting for movement...";
+        }
+
+        function onMotion(e) {
+            let acc = e.accelerationIncludingGravity;
+            if (!acc.x) return;
+
+            let diffX = Math.abs(acc.x - lastX);
+            let diffY = Math.abs(acc.y - lastY);
+
+            if (diffX > THRESHOLD && diffY > THRESHOLD && !isShaking) {
+                earnGold();
+            }
+
+            lastX = acc.x; lastY = acc.y;
+        }
+
+        async function earnGold() {
+            isShaking = true;
+            robot.classList.add('shaking');
+            card.classList.add('shaking');
+            statusDiv = "PROCESSING GOLD...";
+
+            try {
+                const res = await fetch('/api/shake-earn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ walletAddress: wallet })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    confetti({ particleCount: 150, spread: 80, colors: ['#FFD700', '#FFFFFF'] });
+                    statusText.innerText = "SUCCESS! +1000 $SGOLD";
+                } else {
+                    statusText.innerText = data.message;
+                }
+            } catch (e) { statusText.innerText = "Server error"; }
+
+            setTimeout(() => {
+                isShaking = false;
+                robot.classList.remove('shaking');
+                card.classList.remove('shaking');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
