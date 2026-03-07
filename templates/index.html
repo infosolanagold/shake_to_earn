@@ -3,249 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SGOLD - Shake to Earn</title>
-    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.91.7/lib/index.iife.min.js"></script>
+    <title>SGOLD - Shake</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        :root {
-            --gold: #FFD700;
-            --dark-gold: #B8860B;
-            --bg-black: #0a0a0a;
-        }
-
-        body {
-            background-color: var(--bg-black);
-            color: white;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .card {
-            background: linear-gradient(145deg, #1a1a1a, #000);
-            border: 2px solid var(--gold);
-            border-radius: 25px;
-            padding: 40px;
-            text-align: center;
-            max-width: 320px;
-            box-shadow: 0 0 30px rgba(255, 215, 0, 0.15);
-            position: relative;
-            transition: transform 0.1s;
-        }
-
-        .robot-img {
-            width: 180px;
-            height: auto;
-            margin-bottom: 20px;
-            filter: drop-shadow(0 0 10px var(--gold));
-        }
-
-        h1 {
-            color: var(--gold);
-            font-size: 1.8rem;
-            margin: 10px 0;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .streak-badge {
-            background: var(--gold);
-            color: black;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 0.9rem;
-            margin-bottom: 20px;
-            display: inline-block;
-        }
-
-        button {
-            background: linear-gradient(to bottom, var(--gold), var(--dark-gold));
-            color: black;
-            border: none;
-            padding: 15px 30px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            border-radius: 50px;
-            cursor: pointer;
-            width: 100%;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            text-transform: uppercase;
-            transition: opacity 0.3s;
-        }
-
-        button:disabled {
-            background: #333;
-            color: #777;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-
-        #status-text {
-            margin-top: 20px;
-            font-size: 0.9rem;
-            color: #aaa;
-            min-height: 20px;
-        }
-
-        /* Animation de secousse */
-        .shaking {
-            animation: shake-anim 0.2s cubic-bezier(.36,.07,.19,.97) infinite;
-        }
-
-        @keyframes shake-anim {
-            10%, 90% { transform: translate3d(-1px, 0, 0); }
-            20%, 80% { transform: translate3d(2px, 0, 0); }
-            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-            40%, 60% { transform: translate3d(4px, 0, 0); }
-        }
+        body { background: #000; color: #FFD700; text-align: center; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .robot { width: 150px; margin-bottom: 20px; transition: 0.3s; }
+        .btn { background: #FFD700; color: #000; border: none; padding: 15px 30px; border-radius: 50px; font-weight: bold; font-size: 1.2rem; cursor: pointer; }
+        #status { margin-top: 20px; color: #888; font-size: 14px; }
+        .shaking { animation: shake 0.2s infinite; }
+        @keyframes shake { 0% { transform: translate(0,0); } 25% { transform: translate(5px,5px); } 50% { transform: translate(-5px,-5px); } 75% { transform: translate(5px,-5px); } }
     </style>
 </head>
 <body>
 
-    <div class="card" id="app-card">
-        <img src="{{ url_for('static', filename='images/robot.png') }}" id="robot" class="robot-img" alt="SGOLD Robot">
-        
-        <div id="streak-info" class="streak-badge">READY TO SHAKE</div>
-        
-        <h1>SOLANA GOLD</h1>
-        <p style="font-size: 0.8rem; color: #888;">Utility Guard Scanner Active 🛡️</p>
-
-        <button id="main-btn">Connect Wallet</button>
-
-        <div id="status-text">Phantom wallet required</div>
-    </div>
+    <img src="https://static.wixstatic.com/media/ec4b8d_846472666283449eaf02d0dcd16e78d7~mv2.jpg" id="robot" class="robot">
+    <button id="mainBtn" class="btn">CONNECT WALLET</button>
+    <div id="status">Open in Phantom App Browser</div>
 
     <script>
         let wallet = null;
-        let isShaking = false;
-        // Initialisation à null pour éviter les erreurs de calcul au premier mouvement
-        let lastX = null, lastY = null; 
-        const THRESHOLD = 15;
-
-        const mainBtn = document.getElementById('main-btn');
-        const statusText = document.getElementById('status-text');
+        let lastX = null;
+        const mainBtn = document.getElementById('mainBtn');
+        const status = document.getElementById('status');
         const robot = document.getElementById('robot');
-        const streakInfo = document.getElementById('streak-info');
-        const card = document.getElementById('app-card');
 
-        // 1. Connexion Wallet
-        mainBtn.addEventListener('click', async () => {
+        // FONCTION DE CONNEXION SIMPLIFIÉE
+        mainBtn.onclick = async () => {
             if (!wallet) {
-                if ("solana" in window) {
+                // On vérifie si on est dans Phantom
+                const isPhantom = window.solana && window.solana.isPhantom;
+                
+                if (isPhantom) {
                     try {
+                        status.innerText = "Connecting...";
                         const resp = await window.solana.connect();
                         wallet = resp.publicKey.toString();
-                        mainBtn.innerText = "Enable Shake Mode";
-                        statusText.innerText = "Connected: " + wallet.slice(0,6) + "...";
-                    } catch (err) { 
-                        console.error(err); 
-                        statusText.innerText = "Connection failed";
+                        status.innerText = "Wallet: " + wallet.slice(0,6) + "...";
+                        mainBtn.innerText = "START SENSORS";
+                    } catch (err) {
+                        status.innerText = "Connection rejected";
                     }
-                } else { 
-                    alert("Install Phantom!"); 
-                    window.open("https://phantom.app/", "_blank");
+                } else {
+                    alert("Please open this page INSIDE the Phantom App browser tab.");
                 }
             } else {
-                // 2. Demander permission sensors
-                requestSensors();
+                // Demande de capteurs
+                askSensors();
             }
-        });
+        };
 
-        function requestSensors() {
-            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        function askSensors() {
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission()
                     .then(state => {
-                        if (state === 'granted') startShaking();
-                        else statusText.innerText = "Permission denied";
+                        if (state === 'granted') {
+                            window.addEventListener('devicemotion', onMotion);
+                            mainBtn.style.display = 'none';
+                            status.innerText = "SENSORS ACTIVE! SHAKE IT!";
+                        }
                     })
-                    .catch(e => {
-                        console.error(e);
-                        statusText.innerText = "Error requesting sensors";
-                    });
+                    .catch(e => alert("Please allow motion access"));
             } else {
-                // Pour Android ou navigateurs sans API de permission
-                startShaking();
+                window.addEventListener('devicemotion', onMotion);
+                mainBtn.style.display = 'none';
+                status.innerText = "SHAKE IT!";
             }
         }
 
-        function startShaking() {
-            window.addEventListener('devicemotion', onMotion);
-            mainBtn.disabled = true;
-            mainBtn.innerText = "SHAKE NOW!";
-            streakInfo.innerText = "STREAK: DAY 1";
-            statusText.innerText = "Waiting for movement...";
-        }
-
-     function onMotion(e) {
-    // TEST DE FORCE : L'écran devient rouge au moindre frémissement
-    document.body.style.backgroundColor = "red"; 
-
-    let acc = e.accelerationIncludingGravity;
-    if (!acc || acc.x === null) return;
-
-    if (lastX !== null) {
-        let deltaX = Math.abs(acc.x - lastX);
-        if (deltaX > 5) { // Seuil très bas pour le test
-            earnGold();
-        }
-    }
-    lastX = acc.x;
-}
-
-            let diffX = Math.abs(acc.x - lastX);
-            let diffY = Math.abs(acc.y - lastY);
-
-            // Déclenchement si on dépasse le seuil et qu'on n'est pas déjà en cours
-            if ((diffX > THRESHOLD || diffY > THRESHOLD) && !isShaking) {
-                earnGold();
+        function onMotion(e) {
+            let acc = e.accelerationIncludingGravity;
+            if (!acc) return;
+            let currentX = acc.x;
+            if (lastX !== null && Math.abs(currentX - lastX) > 15) {
+                triggerShake();
             }
-
-            lastX = acc.x; 
-            lastY = acc.y;
+            lastX = currentX;
         }
 
-        async function earnGold() {
-            isShaking = true;
+        async function triggerShake() {
+            window.removeEventListener('devicemotion', onMotion);
             robot.classList.add('shaking');
-            card.classList.add('shaking');
-            statusText.innerText = "PROCESSING GOLD...";
-
+            status.innerText = "GOLD EXTRACTED!";
+            
             try {
-                const res = await fetch('/api/shake-earn', {
+                const res = await fetch('https://shake-to-earn.onrender.com/api/shake-earn', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ walletAddress: wallet })
                 });
                 const data = await res.json();
-
                 if (data.success) {
-                    confetti({ 
-                        particleCount: 150, 
-                        spread: 80, 
-                        colors: ['#FFD700', '#FFFFFF', '#B8860B'],
-                        origin: { y: 0.7 }
-                    });
-                    statusText.innerText = `SUCCESS! +${data.amount} $SGOLD`;
-                    streakInfo.innerText = `STREAK: DAY ${data.streak}`;
-                } else {
-                    statusText.innerText = data.message;
+                    confetti();
+                    status.innerText = "SUCCESS! +" + data.amount + " $SGOLD";
                 }
-            } catch (e) { 
-                statusText.innerText = "Server error - check connection"; 
+            } catch (e) {
+                status.innerText = "Success (Server update pending)";
             }
 
-            // Pause de 2 secondes avant de pouvoir re-secouer
             setTimeout(() => {
-                isShaking = false;
                 robot.classList.remove('shaking');
-                card.classList.remove('shaking');
-            }, 2000);
+                window.addEventListener('devicemotion', onMotion);
+            }, 3000);
         }
     </script>
 </body>
