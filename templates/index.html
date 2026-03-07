@@ -13,7 +13,7 @@
         .gold-active { filter: sepia(1) saturate(10) brightness(1.2) drop-shadow(0 0 30px #FFD700) !important; }
         .shake-anim { animation: shake 0.1s infinite; }
         @keyframes shake { 0% { transform: translate(2px, 2px); } 50% { transform: translate(-2px, -2px); } 100% { transform: translate(2px, -2px); } }
-        #status-badge { border: 1px solid #00F0FF; padding: 10px 20px; border-radius: 50px; color: #00F0FF; font-size: 12px; margin-bottom: 20px; text-transform: uppercase; }
+        #status-badge { border: 1px solid #00F0FF; padding: 10px 20px; border-radius: 50px; color: #00F0FF; font-size: 12px; margin-bottom: 20px; text-transform: uppercase; text-align: center; }
     </style>
 </head>
 <body>
@@ -22,53 +22,95 @@
 
     <img src="https://static.wixstatic.com/media/ec4b8d_846472666283449eaf02d0dcd16e78d7~mv2.jpg" id="robot" class="robot-glow">
 
-    <div id="balance" class="hidden text-gold mt-4 text-xl">TOTAL: <span id="amount">0</span> $SGOLD</div>
+    <div id="balance" class="hidden text-gold mt-4 text-xl font-bold">
+        TOTAL: <span id="amount">0</span> $SGOLD
+    </div>
 
     <h1 class="text-2xl mt-6 text-center">SOLANA GOLD<br><span class="text-gold">VAULT ACCESS</span></h1>
 
     <script>
         let wallet = null;
         let isShaking = false;
-        let lastX = null;
+        let lastX = null, lastY = null, lastZ = null;
 
         const robot = document.getElementById('robot');
         const status = document.getElementById('status-badge');
         const balanceDiv = document.getElementById('balance');
+        const amountSpan = document.getElementById('amount');
 
         robot.onclick = async () => {
+            // ÉTAPE 1: CONNEXION WALLET
             if (!wallet) {
                 if (window.solana) {
                     try {
                         const resp = await window.solana.connect();
                         wallet = resp.publicKey.toString();
-                        status.innerText = "WALLET LINKED! CLICK TO ACTIVATE";
-                        status.style.borderColor = "#FFD700"; status.style.color = "#FFD700";
-                    } catch(e) { status.innerText = "DENIED"; }
+                        
+                        // Petite astuce : on appelle l'API pour récupérer le solde existant sans faire de shake
+                        fetchBalance();
+
+                        status.innerText = "WALLET LINKED! CLICK TO ACTIVATE SENSORS";
+                        status.style.borderColor = "#FFD700"; 
+                        status.style.color = "#FFD700";
+                    } catch(e) { status.innerText = "CONNECTION DENIED"; }
                 } else { alert("Open this in Phantom Browser!"); }
-            } else {
-                if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            } 
+            // ÉTAPE 2: ACTIVATION CAPTEURS
+            else {
+                if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                     DeviceMotionEvent.requestPermission().then(state => {
                         if (state === 'granted') {
-                            window.addEventListener('devicemotion', (e) => {
-                                if (isShaking) return;
-                                let acc = e.accelerationIncludingGravity;
-                                if (lastX && Math.abs(acc.x - lastX) > 12) {
-                                    earn();
-                                }
-                                lastX = acc.x;
-                            }, true);
-                            status.innerText = "SENSORS LIVE! SHAKE IT!";
-                            balanceDiv.classList.remove('hidden');
+                            startMotionListener();
                         }
                     }).catch(e => alert("Please allow sensor access in settings"));
+                } else {
+                    startMotionListener();
                 }
             }
         };
+
+        function startMotionListener() {
+            window.addEventListener('devicemotion', (e) => {
+                if (isShaking) return;
+                let acc = e.accelerationIncludingGravity;
+                if (!acc) return;
+
+                let change = 0;
+                if (lastX !== null) {
+                    change = Math.abs(acc.x - lastX) + Math.abs(acc.y - lastY);
+                }
+
+                if (change > 15) { // Sensibilité
+                    earn();
+                }
+
+                lastX = acc.x; lastY = acc.y; lastZ = acc.z;
+            }, true);
+            status.innerText = "SENSORS LIVE! SHAKE YOUR PHONE!";
+            balanceDiv.classList.remove('hidden');
+        }
+
+        async function fetchBalance() {
+            try {
+                // On envoie une requête "vide" ou on utilise l'API pour obtenir les infos de l'utilisateur
+                const res = await fetch('/api/shake-earn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ walletAddress: wallet, checkOnly: true })
+                });
+                const data = await res.json();
+                if (data.total_earned !== undefined) {
+                    amountSpan.innerText = data.total_earned;
+                    balanceDiv.classList.remove('hidden');
+                }
+            } catch (e) { console.log("Balance fetch error"); }
+        }
 
         async function earn() {
             isShaking = true;
             robot.classList.add('shake-anim', 'gold-active');
             status.innerText = "EXTRACTING GOLD...";
+            
             try {
                 const res = await fetch('/api/shake-earn', {
                     method: 'POST',
@@ -76,13 +118,28 @@
                     body: JSON.stringify({ walletAddress: wallet })
                 });
                 const data = await res.json();
-                if (data.success) {
-                    confetti();
-                    document.getElementById('amount').innerText = data.total_earned;
-                    status.innerText = "SUCCESS! +500 $SGOLD";
+                
+                if (data.total_earned !== undefined) {
+                    amountSpan.innerText = data.total_earned;
                 }
-            } catch (e) { status.innerText = "ERROR"; }
-            setTimeout(() => { isShaking = false; robot.classList.remove('shake-anim', 'gold-active'); status.innerText = "SHAKE IT AGAIN!"; }, 3000);
+
+                if (data.success) {
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                    status.innerText = "SUCCESS! +500 $SGOLD";
+                } else {
+                    status.innerText = data.message || "ALREADY CLAIMED TODAY";
+                }
+            } catch (e) { 
+                status.innerText = "SERVER ERROR"; 
+            }
+
+            setTimeout(() => { 
+                isShaking = false; 
+                robot.classList.remove('shake-anim', 'gold-active'); 
+                if(!status.innerText.includes("SUCCESS")) {
+                    status.innerText = "SHAKE IT AGAIN!"; 
+                }
+            }, 3000);
         }
     </script>
 </body>
