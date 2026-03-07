@@ -5,17 +5,9 @@ from flask_cors import CORS
 from pymongo import MongoClient
 
 app = Flask(__name__)
+CORS(app)
 
-# --- CONFIGURATION CORS ---
-CORS(app, resources={r"/api/*": {
-    "origins": [
-        "https://www.solanagoldguard.com", 
-        "https://solanagoldguard.com", 
-        "https://shake-to-earn.onrender.com"
-    ]
-}})
-
-# 1. CONNEXION MONGODB
+# CONNEXION MONGODB
 MONGO_URI = os.environ.get('MONGODB_URI')
 client = MongoClient(MONGO_URI)
 db = client.sgold_database
@@ -30,77 +22,59 @@ def shake_earn():
     try:
         data = request.json
         wallet = data.get('walletAddress')
+        check_only = data.get('checkOnly', False)
         
         if not wallet:
             return jsonify({"success": False, "message": "Wallet missing"}), 400
 
-        # On récupère la date du jour
-        today = datetime.date.today()
-        today_str = today.isoformat()
-        yesterday_str = (today - datetime.timedelta(days=1)).isoformat()
-
-        # 2. RECHERCHE DE L'UTILISATEUR
         user = users_col.find_one({"wallet": wallet})
 
-        # --- CONFIGURATION DES RÉCOMPENSES (Modifiable ici) ---
-        BASE_REWARD = 500  # On est passé de 1000 à 500
-        STREAK_BONUS = 50  # Bonus par jour de série
-
+        # Si l'utilisateur n'existe pas encore
         if not user:
-            # Premier shake pour ce wallet
+            if check_only:
+                return jsonify({"success": True, "total_earned": 0})
+            
+            # Création du premier profil
             new_user = {
                 "wallet": wallet,
-                "last_shake": today_str,
-                "streak": 1,
-                "total_earned": BASE_REWARD
+                "last_shake": "",
+                "total_earned": 0
             }
             users_col.insert_one(new_user)
-            return jsonify({
-                "success": True, 
-                "streak": 1, 
-                "amount": BASE_REWARD,
-                "total_earned": BASE_REWARD
-            })
+            user = new_user
 
-        # 3. VÉRIFICATION : DÉJÀ FAIT AUJOURD'HUI ?
-        if user["last_shake"] == today_str:
+        # Si c'est juste pour vérifier le solde (au chargement)
+        if check_only:
+            return jsonify({"success": True, "total_earned": user.get("total_earned", 0)})
+
+        # LOGIQUE DE SHAKE (24h)
+        today_str = datetime.date.today().isoformat()
+        if user.get("last_shake") == today_str:
             return jsonify({
                 "success": False, 
-                "message": "Already shaken today!",
+                "message": "ALREADY SHAKEN TODAY!", 
                 "total_earned": user.get("total_earned", 0)
             })
 
-        # 4. CALCUL DU STREAK
-        new_streak = 1
-        if user["last_shake"] == yesterday_str:
-            new_streak = user.get("streak", 1) + 1
-        
-        # Calcul de la récompense (500 + bonus)
-        reward = BASE_REWARD + (new_streak * STREAK_BONUS)
-
-        # 5. MISE À JOUR BASE
+        # MISE À JOUR : +500 SGOLD
+        reward = 500
         users_col.update_one(
             {"wallet": wallet},
             {
-                "$set": {"last_shake": today_str, "streak": new_streak},
+                "$set": {"last_shake": today_str},
                 "$inc": {"total_earned": reward}
             }
         )
-
-        # On récupère le nouveau total après mise à jour
+        
+        # Récupération du nouveau total
         updated_user = users_col.find_one({"wallet": wallet})
-
+        
         return jsonify({
             "success": True, 
-            "streak": new_streak, 
-            "amount": reward,
+            "amount": reward, 
             "total_earned": updated_user["total_earned"]
         })
 
     except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({"success": False, "message": "Server error"}), 500
-
-if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+        print(f"Server Error: {e}")
+        return jsonify({"success": False, "message": "Database Error"}), 500
