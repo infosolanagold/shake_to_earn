@@ -1,14 +1,23 @@
 import os
 import datetime
-from flask import Flask, render_template, request, jsonify, url_for
+from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
 
 app = Flask(__name__)
-CORS(app)
+
+# --- CONFIGURATION CORS CRUCIALE ---
+# On autorise explicitement tes deux domaines (avec et sans www) et ton lien de test Render
+CORS(app, resources={r"/api/*": {
+    "origins": [
+        "https://www.solanagoldguard.com", 
+        "https://solanagoldguard.com", 
+        "https://shake-to-earn.onrender.com"
+    ]
+}})
 
 # 1. CONNEXION MONGODB
-# Récupère le lien que tu as mis dans les variables d'environnement de Render
+# Assure-toi que la variable s'appelle bien MONGODB_URI dans Render
 MONGO_URI = os.environ.get('MONGODB_URI')
 client = MongoClient(MONGO_URI)
 db = client.sgold_database
@@ -27,7 +36,7 @@ def shake_earn():
         if not wallet:
             return jsonify({"success": False, "message": "Wallet missing"}), 400
 
-        # On récupère la date du jour (format YYYY-MM-DD)
+        # On récupère la date du jour
         today = datetime.date.today()
         today_str = today.isoformat()
         yesterday_str = (today - datetime.timedelta(days=1)).isoformat()
@@ -36,7 +45,7 @@ def shake_earn():
         user = users_col.find_one({"wallet": wallet})
 
         if not user:
-            # Premier shake à vie pour ce wallet
+            # Premier shake pour ce wallet
             new_user = {
                 "wallet": wallet,
                 "last_shake": today_str,
@@ -48,17 +57,16 @@ def shake_earn():
 
         # 3. VÉRIFICATION : DÉJÀ FAIT AUJOURD'HUI ?
         if user["last_shake"] == today_str:
-            return jsonify({"success": False, "message": "Already shaken today! Come back tomorrow."})
+            return jsonify({"success": False, "message": "Already shaken today!"})
 
-        # 4. CALCUL DU STREAK (SÉRIE)
+        # 4. CALCUL DU STREAK
         new_streak = 1
         if user["last_shake"] == yesterday_str:
             new_streak = user["streak"] + 1
         
-        # Calcul du gain (ex: 1000 de base + 100 par jour de streak)
         reward = 1000 + (new_streak * 100)
 
-        # 5. MISE À JOUR DANS LA BASE
+        # 5. MISE À JOUR BASE
         users_col.update_one(
             {"wallet": wallet},
             {
@@ -78,6 +86,5 @@ def shake_earn():
         return jsonify({"success": False, "message": "Server error"}), 500
 
 if __name__ == "__main__":
-    # Render utilise la variable d'environnement PORT
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
