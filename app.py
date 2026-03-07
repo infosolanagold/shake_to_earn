@@ -6,8 +6,7 @@ from pymongo import MongoClient
 
 app = Flask(__name__)
 
-# --- CONFIGURATION CORS CRUCIALE ---
-# On autorise explicitement tes deux domaines (avec et sans www) et ton lien de test Render
+# --- CONFIGURATION CORS ---
 CORS(app, resources={r"/api/*": {
     "origins": [
         "https://www.solanagoldguard.com", 
@@ -17,7 +16,6 @@ CORS(app, resources={r"/api/*": {
 }})
 
 # 1. CONNEXION MONGODB
-# Assure-toi que la variable s'appelle bien MONGODB_URI dans Render
 MONGO_URI = os.environ.get('MONGODB_URI')
 client = MongoClient(MONGO_URI)
 db = client.sgold_database
@@ -44,27 +42,41 @@ def shake_earn():
         # 2. RECHERCHE DE L'UTILISATEUR
         user = users_col.find_one({"wallet": wallet})
 
+        # --- CONFIGURATION DES RÉCOMPENSES (Modifiable ici) ---
+        BASE_REWARD = 500  # On est passé de 1000 à 500
+        STREAK_BONUS = 50  # Bonus par jour de série
+
         if not user:
             # Premier shake pour ce wallet
             new_user = {
                 "wallet": wallet,
                 "last_shake": today_str,
                 "streak": 1,
-                "total_earned": 1000
+                "total_earned": BASE_REWARD
             }
             users_col.insert_one(new_user)
-            return jsonify({"success": True, "streak": 1, "amount": 1000})
+            return jsonify({
+                "success": True, 
+                "streak": 1, 
+                "amount": BASE_REWARD,
+                "total_earned": BASE_REWARD
+            })
 
         # 3. VÉRIFICATION : DÉJÀ FAIT AUJOURD'HUI ?
         if user["last_shake"] == today_str:
-            return jsonify({"success": False, "message": "Already shaken today!"})
+            return jsonify({
+                "success": False, 
+                "message": "Already shaken today!",
+                "total_earned": user.get("total_earned", 0)
+            })
 
         # 4. CALCUL DU STREAK
         new_streak = 1
         if user["last_shake"] == yesterday_str:
-            new_streak = user["streak"] + 1
+            new_streak = user.get("streak", 1) + 1
         
-        reward = 1000 + (new_streak * 100)
+        # Calcul de la récompense (500 + bonus)
+        reward = BASE_REWARD + (new_streak * STREAK_BONUS)
 
         # 5. MISE À JOUR BASE
         users_col.update_one(
@@ -75,10 +87,14 @@ def shake_earn():
             }
         )
 
+        # On récupère le nouveau total après mise à jour
+        updated_user = users_col.find_one({"wallet": wallet})
+
         return jsonify({
             "success": True, 
             "streak": new_streak, 
-            "amount": reward
+            "amount": reward,
+            "total_earned": updated_user["total_earned"]
         })
 
     except Exception as e:
