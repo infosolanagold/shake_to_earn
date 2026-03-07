@@ -31,7 +31,10 @@
     <script>
         let wallet = null;
         let isShaking = false;
-        let lastX = null, lastY = null, lastZ = null;
+        let lastX = null, lastY = null;
+        
+        // URL DE TON API RENDER
+        const API_URL = "https://shake-to-earn.onrender.com/api/shake-earn";
 
         const robot = document.getElementById('robot');
         const status = document.getElementById('status-badge');
@@ -39,14 +42,13 @@
         const amountSpan = document.getElementById('amount');
 
         robot.onclick = async () => {
-            // ÉTAPE 1: CONNEXION WALLET
             if (!wallet) {
                 if (window.solana) {
                     try {
                         const resp = await window.solana.connect();
                         wallet = resp.publicKey.toString();
                         
-                        // Petite astuce : on appelle l'API pour récupérer le solde existant sans faire de shake
+                        // Récupérer le solde immédiatement après connexion
                         fetchBalance();
 
                         status.innerText = "WALLET LINKED! CLICK TO ACTIVATE SENSORS";
@@ -55,7 +57,6 @@
                     } catch(e) { status.innerText = "CONNECTION DENIED"; }
                 } else { alert("Open this in Phantom Browser!"); }
             } 
-            // ÉTAPE 2: ACTIVATION CAPTEURS
             else {
                 if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                     DeviceMotionEvent.requestPermission().then(state => {
@@ -80,11 +81,11 @@
                     change = Math.abs(acc.x - lastX) + Math.abs(acc.y - lastY);
                 }
 
-                if (change > 15) { // Sensibilité
+                if (change > 15) { 
                     earn();
                 }
 
-                lastX = acc.x; lastY = acc.y; lastZ = acc.z;
+                lastX = acc.x; lastY = acc.y;
             }, true);
             status.innerText = "SENSORS LIVE! SHAKE YOUR PHONE!";
             balanceDiv.classList.remove('hidden');
@@ -92,8 +93,7 @@
 
         async function fetchBalance() {
             try {
-                // On envoie une requête "vide" ou on utilise l'API pour obtenir les infos de l'utilisateur
-                const res = await fetch('/api/shake-earn', {
+                const res = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ walletAddress: wallet, checkOnly: true })
@@ -103,24 +103,29 @@
                     amountSpan.innerText = data.total_earned;
                     balanceDiv.classList.remove('hidden');
                 }
-            } catch (e) { console.log("Balance fetch error"); }
+            } catch (e) { console.log("Balance fetch error", e); }
         }
 
         async function earn() {
+            if (isShaking) return;
             isShaking = true;
+            
             robot.classList.add('shake-anim', 'gold-active');
-            status.innerText = "EXTRACTING GOLD...";
+            status.innerText = "⚡ EXTRACTING GOLD...";
             
             try {
-                const res = await fetch('/api/shake-earn', {
+                const res = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ walletAddress: wallet })
                 });
                 const data = await res.json();
-                
+                console.log("Server response:", data);
+
+                // MISE À JOUR SYSTÉMATIQUE DU SOLDE
                 if (data.total_earned !== undefined) {
                     amountSpan.innerText = data.total_earned;
+                    balanceDiv.classList.remove('hidden');
                 }
 
                 if (data.success) {
@@ -131,13 +136,14 @@
                 }
             } catch (e) { 
                 status.innerText = "SERVER ERROR"; 
+                console.error("Earn error:", e);
             }
 
             setTimeout(() => { 
                 isShaking = false; 
                 robot.classList.remove('shake-anim', 'gold-active'); 
                 if(!status.innerText.includes("SUCCESS")) {
-                    status.innerText = "SHAKE IT AGAIN!"; 
+                    status.innerText = "SENSORS LIVE! SHAKE IT!"; 
                 }
             }, 3000);
         }
