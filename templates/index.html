@@ -18,8 +18,20 @@
         .gold-active { filter: sepia(1) saturate(10) brightness(1.2) drop-shadow(0 0 30px #FFD700) !important; }
         .shake-anim { animation: shake 0.1s infinite; }
         @keyframes shake { 0% { transform: translate(2px, 2px); } 50% { transform: translate(-2px, -2px); } 100% { transform: translate(2px, -2px); } }
-        #status-badge { border: 1px solid #00F0FF; padding: 10px 20px; border-radius: 50px; color: #00F0FF; font-size: 11px; margin-bottom: 20px; text-transform: uppercase; text-align: center; }
-        #balance-container { display: none; margin-top: 20px; border: 1px solid rgba(255, 215, 0, 0.3); padding: 10px 30px; border-radius: 15px; background: rgba(255, 215, 0, 0.05); }
+        
+        #status-badge { 
+            border: 1px solid #00F0FF; padding: 10px 20px; border-radius: 50px; 
+            color: #00F0FF; font-size: 11px; margin-bottom: 20px; 
+            text-transform: uppercase; text-align: center; min-width: 280px;
+        }
+        
+        #balance-container { 
+            display: none; margin-top: 20px; border: 1px solid rgba(255, 215, 0, 0.3); 
+            padding: 10px 30px; border-radius: 15px; background: rgba(255, 215, 0, 0.05); 
+            transition: all 0.5s ease;
+        }
+        
+        .counter-up { transition: all 0.5s ease; }
     </style>
 </head>
 <body>
@@ -30,7 +42,9 @@
 
     <div id="balance-container">
         <span class="text-gray-400 text-[10px] uppercase block tracking-widest text-center">Your Balance</span>
-        <div class="text-gold text-2xl font-black"><span id="amount">0</span> $SGOLD</div>
+        <div class="text-gold text-2xl font-black text-center">
+            <span id="amount" class="counter-up">0</span> $SGOLD
+        </div>
     </div>
 
     <h1 class="text-xl mt-8 text-center opacity-50 uppercase tracking-[0.3em]">Vault Access</h1>
@@ -45,7 +59,21 @@
         const balanceContainer = document.getElementById('balance-container');
         const amountDisplay = document.getElementById('amount');
 
-        // ÉTAPE 1 : CLIC SUR LE ROBOT
+        // FONCTION DE COMPTEUR ANIMÉ (Jackpot Effect)
+        function animateCounter(start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const currentVal = Math.floor(progress * (end - start) + start);
+                amountDisplay.innerText = currentVal.toLocaleString();
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
         robot.onclick = async () => {
             if (!wallet) {
                 const provider = window.solana || (window.parent && window.parent.solana);
@@ -53,16 +81,12 @@
                     try {
                         const resp = await provider.connect();
                         wallet = resp.publicKey.toString();
-                        
-                        // ON RÉCUPÈRE LE SOLDE IMMÉDIATEMENT
                         updateUI(); 
-
-                        status.innerText = "WALLET LINKED! CLICK AGAIN TO ACTIVATE";
+                        status.innerText = "WALLET LINKED! CLICK TO ACTIVATE SENSORS";
                         status.style.borderColor = "#FFD700"; status.style.color = "#FFD700";
                     } catch(e) { status.innerText = "DENIED"; }
                 } else { alert("Open in Phantom Browser!"); }
             } else {
-                // ÉTAPE 2 : PERMISSIONS CAPTEURS
                 if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                     DeviceMotionEvent.requestPermission().then(state => {
                         if (state === 'granted') startMining();
@@ -79,14 +103,13 @@
                 let acc = e.accelerationIncludingGravity;
                 if (!acc) return;
                 let delta = Math.abs(acc.x - (lastX || acc.x)) + Math.abs(acc.y - (lastY || acc.y));
-                if (delta > 15) earn(); // Sensibilité
+                if (delta > 15) earn(); 
                 lastX = acc.x; lastY = acc.y;
             }, true);
             status.innerText = "SENSORS LIVE! SHAKE IT! 🛡️";
             balanceContainer.style.display = "block";
         }
 
-        // FONCTION QUI PARLE AU SERVEUR POUR METTRE À JOUR LE TOTAL
         async function updateUI() {
             try {
                 const res = await fetch('/api/shake-earn', {
@@ -96,16 +119,17 @@
                 });
                 const data = await res.json();
                 if (data.total_earned !== undefined) {
-                    amountDisplay.innerText = data.total_earned;
+                    amountDisplay.innerText = data.total_earned.toLocaleString();
                     balanceContainer.style.display = "block";
                 }
             } catch (e) { console.error("Update error"); }
         }
 
         async function earn() {
+            if (isShaking) return;
             isShaking = true;
             robot.classList.add('shake-anim', 'gold-active');
-            status.innerText = "EXTRACTING GOLD...";
+            status.innerText = "⚡ EXTRACTING GOLD...";
             
             try {
                 const res = await fetch('/api/shake-earn', {
@@ -115,16 +139,20 @@
                 });
                 const data = await res.json();
 
-                // ICI ON FORCE LA MISE À JOUR DU CHIFFRE DEPUIS LE SERVEUR
-                if (data.total_earned !== undefined) {
-                    amountDisplay.innerText = data.total_earned;
-                }
-
                 if (data.success) {
                     confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
                     status.innerText = "SUCCESS! +500 $SGOLD";
+
+                    // DÉCLENCHEMENT DU COMPTEUR ANIMÉ
+                    const oldVal = parseInt(amountDisplay.innerText.replace(/,/g, '')) || 0;
+                    const newVal = data.total_earned;
+                    animateCounter(oldVal, newVal, 1500); // 1.5 seconde d'animation
+                    
                 } else {
                     status.innerText = data.message;
+                    if (data.total_earned !== undefined) {
+                        amountDisplay.innerText = data.total_earned.toLocaleString();
+                    }
                 }
             } catch (e) { status.innerText = "CONNECTION ERROR"; }
 
