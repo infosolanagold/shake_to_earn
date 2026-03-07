@@ -182,16 +182,21 @@
             statusText.innerText = "Waiting for movement...";
         }
 
-        function onMotion(e) {
-            let acc = e.accelerationIncludingGravity;
-            if (!acc || acc.x === null) return;
+     function onMotion(e) {
+    // TEST DE FORCE : L'écran devient rouge au moindre frémissement
+    document.body.style.backgroundColor = "red"; 
 
-            // Au premier passage, on enregistre les coordonnées et on quitte
-            if (lastX === null || lastY === null) {
-                lastX = acc.x;
-                lastY = acc.y;
-                return;
-            }
+    let acc = e.accelerationIncludingGravity;
+    if (!acc || acc.x === null) return;
+
+    if (lastX !== null) {
+        let deltaX = Math.abs(acc.x - lastX);
+        if (deltaX > 5) { // Seuil très bas pour le test
+            earnGold();
+        }
+    }
+    lastX = acc.x;
+}
 
             let diffX = Math.abs(acc.x - lastX);
             let diffY = Math.abs(acc.y - lastY);
