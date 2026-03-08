@@ -1,4 +1,5 @@
 import os
+import time  # NÉCESSAIRE POUR LE CHRONOMÈTRE STRICT
 import datetime
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
@@ -22,19 +23,23 @@ except Exception as e:
 def home():
     return render_template('index.html')
 
-# --- NOUVELLE ROUTE POUR LE LEADERBOARD ---
+# --- NOUVELLE ROUTE POUR AFFICHER LA PAGE ADMIN ---
+@app.route('/admin')
+def admin_page():
+    return render_template('admin.html')
+
+# --- ROUTE POUR LE LEADERBOARD ---
 @app.route('/api/leaderboard', methods=['GET'])
 def get_leaderboard():
     try:
-        # On récupère les 10 meilleurs, triés par total_earned décroissant
+        # On récupère tout le monde (sans limite de 10) pour que l'admin puisse tous les payer
         top_users = list(users_col.find({}, {"_id": 0, "wallet": 1, "total_earned": 1})
-                         .sort("total_earned", -1)
-                         .limit(10))
+                         .sort("total_earned", -1))
         return jsonify(top_users)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- LOGIQUE DE SHAKE ---
+# --- LOGIQUE DE SHAKE (SÉCURITÉ STRICTE 24H) ---
 @app.route('/api/shake-earn', methods=['POST'])
 def shake_earn():
     try:
@@ -47,26 +52,36 @@ def shake_earn():
 
         user = users_col.find_one({"wallet": wallet})
 
+        # Si l'utilisateur n'existe pas, on le crée
         if not user:
-            new_user = {"wallet": wallet, "last_shake": "", "total_earned": 0}
+            new_user = {"wallet": wallet, "last_shake_ts": 0, "total_earned": 0}
             users_col.insert_one(new_user)
             user = new_user
 
         if check_only:
             return jsonify({"success": True, "total_earned": user.get("total_earned", 0)})
 
-        today_str = datetime.date.today().isoformat()
-        if user.get("last_shake") == today_str:
+        # --- COMPTE À REBOURS STRICT DE 24 HEURES ---
+        now_ts = time.time()
+        # On récupère le timestamp exact du dernier shake (0 si c'est la première fois)
+        last_shake_ts = user.get("last_shake_ts", 0)
+
+        # 86400 secondes = exactement 24 heures
+        if now_ts - last_shake_ts < 86400:
+            time_left = int(86400 - (now_ts - last_shake_ts))
+            hours = time_left // 3600
+            minutes = (time_left % 3600) // 60
             return jsonify({
                 "success": False, 
-                "message": "ALREADY SHAKEN TODAY!", 
+                "message": f"WAIT {hours}H {minutes}M", 
                 "total_earned": user.get("total_earned", 0)
             })
 
+        # S'il a attendu 24h, on donne la récompense
         reward = 500
         users_col.update_one(
             {"wallet": wallet},
-            {"$set": {"last_shake": today_str}, "$inc": {"total_earned": reward}}
+            {"$set": {"last_shake_ts": now_ts}, "$inc": {"total_earned": reward}}
         )
         
         updated_user = users_col.find_one({"wallet": wallet})
@@ -77,7 +92,30 @@ def shake_earn():
         })
 
     except Exception as e:
+        print(f"Server error: {e}")
         return jsonify({"success": False, "message": "Server error"}), 500
+
+# --- ROUTE SECRÈTE POUR RÉINITIALISER UN JOUEUR (ADMIN) ---
+@app.route('/api/admin/reset-user', methods=['POST'])
+def reset_user():
+    data = request.json
+    password = data.get('password')
+    wallet = data.get('wallet')
+
+    # MOT DE PASSE ADMIN
+    if password != "admin2026": 
+        return jsonify({"success": False, "message": "Access Denied"}), 401
+
+    if not wallet:
+        return jsonify({"success": False, "message": "No wallet provided"}), 400
+
+    # Remet le compteur du joueur à ZÉRO
+    users_col.update_one(
+        {"wallet": wallet},
+        {"$set": {"total_earned": 0}}
+    )
+    
+    return jsonify({"success": True, "message": f"Compteur de {wallet} remis à 0 !"})
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
