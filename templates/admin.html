@@ -1,43 +1,141 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SGOLD | ADMIN PANEL</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGOLD COMMAND CENTER</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
-    <style>body { background: #000205; color: #fff; font-family: 'Orbitron', sans-serif; }</style>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { background: #000205; color: #fff; font-family: 'Orbitron', sans-serif; }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 15px;
+        }
+    </style>
 </head>
-<body class="p-8">
-    <h1 class="text-gold text-2xl mb-8 border-b border-gold/30 pb-4">🛡️ SGOLD COMMAND CENTER</h1>
-    
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div class="bg-white/5 p-6 rounded-xl border border-white/10">
-            <p class="text-gray-400 text-xs uppercase">Total Guardians</p>
-            <p class="text-3xl text-cyan-400">{{ count }}</p>
+<body class="min-h-screen p-6 md:p-12">
+
+    <div id="login-section" class="max-w-md mx-auto mt-20 glass-card p-8 text-center">
+        <i data-lucide="shield-alert" class="text-[#FFD700] mx-auto mb-4" width="48" height="48"></i>
+        <h1 class="text-2xl font-bold mb-6 tracking-widest text-[#FFD700]">RESTRICTED AREA</h1>
+        <input type="password" id="admin-pass" placeholder="Enter Admin Key" class="w-full bg-black border border-gray-700 p-4 rounded mb-4 text-center text-white focus:border-[#FFD700] outline-none">
+        <button onclick="login()" class="w-full bg-gradient-to-r from-[#FFD700] to-[#C5A000] text-black font-bold py-4 rounded hover:scale-105 transition uppercase tracking-widest">
+            VERIFY IDENTITY
+        </button>
+        <p id="login-error" class="text-red-500 mt-4 text-sm hidden">Invalid Credentials.</p>
+    </div>
+
+    <div id="dashboard-section" class="max-w-5xl mx-auto hidden animate-[fadeIn_0.5s]">
+        <div class="flex justify-between items-center mb-10 border-b border-white/10 pb-4">
+            <h1 class="text-3xl font-black text-[#FFD700] flex items-center gap-3"><i data-lucide="terminal"></i> AIRDROP COMMAND CENTER</h1>
+            <button onclick="location.reload()" class="text-xs border border-red-500 text-red-500 px-4 py-2 rounded hover:bg-red-500 hover:text-white transition">LOCK</button>
         </div>
-        <div class="bg-white/5 p-6 rounded-xl border border-white/10">
-            <p class="text-gray-400 text-xs uppercase">Total $SGOLD Distributed</p>
-            <p class="text-3xl text-yellow-500">{{ "{:,}".format(total_gold) }}</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="glass-card p-6 border-t-4 border-green-500">
+                <h2 class="text-xl font-bold text-green-400 mb-4 flex items-center gap-2"><i data-lucide="check-circle"></i> ELIGIBLE FOR PAYOUT</h2>
+                <div id="eligible-list" class="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                    </div>
+            </div>
+
+            <div class="glass-card p-6 border-t-4 border-[#FFD700]">
+                <h2 class="text-xl font-bold text-[#FFD700] mb-4 flex items-center gap-2"><i data-lucide="pickaxe"></i> MINING IN PROGRESS</h2>
+                <div id="mining-list" class="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                    </div>
+            </div>
         </div>
     </div>
 
-    <table class="w-full text-left bg-white/5 rounded-xl overflow-hidden">
-        <thead class="bg-white/10 text-xs uppercase text-gray-400">
-            <tr>
-                <th class="p-4">Wallet Address</th>
-                <th class="p-4">Total Earned</th>
-                <th class="p-4">Last Activity</th>
-            </tr>
-        </thead>
-        <tbody class="text-sm">
-            {% for user in users %}
-            <tr class="border-b border-white/5 hover:bg-white/10 transition">
-                <td class="p-4 font-mono text-cyan-300">{{ user.wallet }}</td>
-                <td class="p-4 text-gold font-bold">{{ user.total_earned }}</td>
-                <td class="p-4 text-gray-500">{{ user.last_shake }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <script>
+        lucide.createIcons();
+        let adminPassword = "";
+
+        function login() {
+            const pass = document.getElementById('admin-pass').value;
+            if(pass.length > 0) {
+                adminPassword = pass;
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('dashboard-section').classList.remove('hidden');
+                loadData();
+            }
+        }
+
+        async function loadData() {
+            try {
+                const res = await fetch('/api/leaderboard');
+                const users = await res.json();
+                
+                const eligibleList = document.getElementById('eligible-list');
+                const miningList = document.getElementById('mining-list');
+                
+                eligibleList.innerHTML = '';
+                miningList.innerHTML = '';
+
+                let eligibleCount = 0;
+
+                users.forEach(user => {
+                    const shortWallet = user.wallet.substring(0, 6) + '...' + user.wallet.substring(user.wallet.length - 4);
+                    
+                    if(user.total_earned >= 5000) {
+                        eligibleCount++;
+                        eligibleList.innerHTML += `
+                            <div class="bg-black/50 p-4 rounded-lg border border-green-500/30 flex justify-between items-center">
+                                <div>
+                                    <div class="text-xs text-gray-400 cursor-pointer hover:text-white" onclick="navigator.clipboard.writeText('${user.wallet}')">${shortWallet} <i data-lucide="copy" class="inline w-3 h-3"></i></div>
+                                    <div class="text-green-400 font-bold text-lg">${user.total_earned.toLocaleString()} $SGOLD</div>
+                                </div>
+                                <button onclick="resetUser('${user.wallet}')" class="bg-red-900/50 text-red-400 border border-red-500 px-4 py-2 rounded text-xs font-bold hover:bg-red-500 hover:text-white transition">
+                                    PAID & RESET
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        miningList.innerHTML += `
+                            <div class="bg-black/50 p-4 rounded-lg border border-white/5 flex justify-between items-center">
+                                <div class="text-xs text-gray-400 font-mono">${shortWallet}</div>
+                                <div class="text-[#FFD700] font-bold">${user.total_earned.toLocaleString()}</div>
+                            </div>
+                        `;
+                    }
+                });
+
+                if(eligibleCount === 0) {
+                    eligibleList.innerHTML = '<div class="text-center text-gray-500 text-sm mt-10">No users eligible for airdrop yet.</div>';
+                }
+                
+                lucide.createIcons();
+
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function resetUser(wallet) {
+            if(!confirm("Are you sure you have paid this user? This will reset their balance to 0.")) return;
+
+            try {
+                const res = await fetch('/api/admin/reset-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: adminPassword, wallet: wallet })
+                });
+                
+                const data = await res.json();
+                
+                if(data.success) {
+                    alert("User reset successfully!");
+                    loadData(); // Recharge la page automatiquement
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch(e) {
+                alert("Server error.");
+            }
+        }
+    </script>
 </body>
 </html>
