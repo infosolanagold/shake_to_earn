@@ -11,11 +11,11 @@ CORS(app)
 # CONNEXION MONGODB
 try:
     MONGO_URI = os.environ.get('MONGODB_URI')
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    # L'ajout de connect=False est VITAL ici. Il empêche le serveur de geler sur Render !
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000, connect=False)
     db = client.sgold_database
     users_col = db.users
-    client.admin.command('ping')
-    print("MongoDB Connected Successfully!")
+    print("MongoDB Ready!")
 except Exception as e:
     print(f"MongoDB Connection Error: {e}")
 
