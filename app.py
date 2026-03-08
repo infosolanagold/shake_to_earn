@@ -39,7 +39,7 @@ def get_leaderboard():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- LOGIQUE DE SHAKE (SÉCURITÉ STRICTE 24H) ---
+# --- LOGIQUE DE SHAKE (SÉCURITÉ MAXIMUM 24H) ---
 @app.route('/api/shake-earn', methods=['POST'])
 def shake_earn():
     try:
@@ -52,7 +52,7 @@ def shake_earn():
 
         user = users_col.find_one({"wallet": wallet})
 
-        # Si l'utilisateur n'existe pas, on le crée
+        # Création de l'utilisateur s'il n'existe pas
         if not user:
             new_user = {"wallet": wallet, "last_shake_ts": 0, "total_earned": 0}
             users_col.insert_one(new_user)
@@ -61,35 +61,41 @@ def shake_earn():
         if check_only:
             return jsonify({"success": True, "total_earned": user.get("total_earned", 0)})
 
-        # --- COMPTE À REBOURS STRICT DE 24 HEURES ---
+        # --- VÉRIFICATION DU TEMPS STRICTE ---
         now_ts = time.time()
-        # On récupère le timestamp exact du dernier shake (0 si c'est la première fois)
         last_shake_ts = user.get("last_shake_ts", 0)
 
         # 86400 secondes = exactement 24 heures
-        if now_ts - last_shake_ts < 86400:
+        if (now_ts - last_shake_ts) < 86400:
             time_left = int(86400 - (now_ts - last_shake_ts))
             hours = time_left // 3600
             minutes = (time_left % 3600) // 60
+            
+            # ARRÊT IMMÉDIAT : On ne distribue pas de récompense
             return jsonify({
                 "success": False, 
                 "message": f"WAIT {hours}H {minutes}M", 
                 "total_earned": user.get("total_earned", 0)
             })
 
-        # S'il a attendu 24h, on donne la récompense
+        # --- DISTRIBUTION DE LA RÉCOMPENSE ---
         reward = 500
-        users_col.update_one(
+        
+        # Mise à jour atomique : on change le timestamp ET on incrémente le gain
+        result = users_col.update_one(
             {"wallet": wallet},
             {"$set": {"last_shake_ts": now_ts}, "$inc": {"total_earned": reward}}
         )
         
-        updated_user = users_col.find_one({"wallet": wallet})
-        return jsonify({
-            "success": True, 
-            "amount": reward, 
-            "total_earned": updated_user["total_earned"]
-        })
+        if result.modified_count > 0:
+            updated_user = users_col.find_one({"wallet": wallet})
+            return jsonify({
+                "success": True, 
+                "amount": reward, 
+                "total_earned": updated_user["total_earned"]
+            })
+        else:
+            return jsonify({"success": False, "message": "Update failed"}), 500
 
     except Exception as e:
         print(f"Server error: {e}")
