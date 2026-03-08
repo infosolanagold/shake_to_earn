@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>SGOLD | ADMIN PANEL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <style>body { background: #000205; color: #fff; font-family: 'Orbitron', sans-serif; }</style>
+</head>
+<body class="p-8">
+    <h1 class="text-gold text-2xl mb-8 border-b border-gold/30 pb-4">🛡️ SGOLD COMMAND CENTER</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="bg-white/5 p-6 rounded-xl border border-white/10">
+            <p class="text-gray-400 text-xs uppercase">Total Guardians</p>
+            <p class="text-3xl text-cyan-400">{{ count }}</p>
+        </div>
+        <div class="bg-white/5 p-6 rounded-xl border border-white/10">
+            <p class="text-gray-400 text-xs uppercase">Total $SGOLD Distributed</p>
+            <p class="text-3xl text-yellow-500">{{ "{:,}".format(total_gold) }}</p>
+        </div>
+    </div>
+
+    <table class="w-full text-left bg-white/5 rounded-xl overflow-hidden">
+        <thead class="bg-white/10 text-xs uppercase text-gray-400">
+            <tr>
+                <th class="p-4">Wallet Address</th>
+                <th class="p-4">Total Earned</th>
+                <th class="p-4">Last Activity</th>
+            </tr>
+        </thead>
+        <tbody class="text-sm">
+            {% for user in users %}
+            <tr class="border-b border-white/5 hover:bg-white/10 transition">
+                <td class="p-4 font-mono text-cyan-300">{{ user.wallet }}</td>
+                <td class="p-4 text-gold font-bold">{{ user.total_earned }}</td>
+                <td class="p-4 text-gray-500">{{ user.last_shake }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
