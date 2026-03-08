@@ -8,30 +8,87 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
     <style>
+        /* Optimisation pour plein écran mobile sans scroll */
         body { 
-            background: #000205; color: #fff; font-family: 'Orbitron', sans-serif; 
-            overflow: hidden !important; height: 100vh; width: 100vw;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            position: fixed; touch-action: none;
+            background: #000205; 
+            color: #fff; 
+            font-family: 'Orbitron', sans-serif; 
+            margin: 0;
+            padding: 0;
+            height: 100vh; 
+            height: 100svh; 
+            width: 100vw;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 20px;
+            position: fixed; 
+            touch-action: none;
+            overflow: hidden !important;
         }
-        .robot-glow { filter: drop-shadow(0 0 20px #FFD700); width: 180px; transition: 0.3s; cursor: pointer; }
-        .gold-active { filter: sepia(1) saturate(10) brightness(1.2) drop-shadow(0 0 30px #FFD700) !important; }
-        .shake-anim { animation: shake 0.1s infinite; }
-        @keyframes shake { 0% { transform: translate(2px, 2px); } 50% { transform: translate(-2px, -2px); } 100% { transform: translate(2px, -2px); } }
+
+        /* Robot avec animations de la main page */
+        .robot-glow { 
+            width: min(250px, 60vw); 
+            transition: 0.3s; 
+            cursor: pointer; 
+            margin: auto 0;
+            border-radius: 50%;
+            border: 3px solid #FFD700;
+            overflow: hidden;
+            background: #000;
+            /* Animations combinées : Flotter + Pulsation dorée */
+            animation: float 6s ease-in-out infinite, pulseGlow 2s infinite;
+        }
+
+        /* État quand on secoue (Shake) */
+        .gold-active { 
+            filter: sepia(1) saturate(10) brightness(1.2) drop-shadow(0 0 40px #FFD700) !important; 
+            animation: shake 0.1s infinite !important;
+        }
+        
+        /* Keyframes Main Page */
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(2deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.3); transform: scale(1); }
+            50% { box-shadow: 0 0 35px rgba(255, 215, 0, 0.6); transform: scale(1.02); }
+        }
+
+        @keyframes shake { 
+            0% { transform: translate(3px, 3px); } 
+            50% { transform: translate(-3px, -3px); } 
+            100% { transform: translate(3px, -3px); } 
+        }
         
         #status-badge { 
-            border: 1px solid #00F0FF; padding: 10px 20px; border-radius: 50px; 
-            color: #00F0FF; font-size: 11px; margin-bottom: 20px; 
-            text-transform: uppercase; text-align: center; min-width: 280px;
+            border: 1px solid #00F0FF; 
+            padding: 12px 24px; 
+            border-radius: 50px; 
+            color: #00F0FF; 
+            font-size: 11px; 
+            margin-top: 20px;
+            text-transform: uppercase; 
+            text-align: center; 
+            min-width: 280px;
+            background: rgba(0, 240, 255, 0.05);
         }
         
         #balance-container { 
-            display: none; margin-top: 20px; border: 1px solid rgba(255, 215, 0, 0.3); 
-            padding: 10px 30px; border-radius: 15px; background: rgba(255, 215, 0, 0.05); 
-            transition: all 0.5s ease;
+            display: none; 
+            margin-bottom: 30px; 
+            border: 1px solid rgba(255, 215, 0, 0.3); 
+            padding: 15px 40px; 
+            border-radius: 20px; 
+            background: rgba(255, 215, 0, 0.1); 
+            width: 100%;
+            max-width: 320px;
         }
-        
-        .counter-up { transition: all 0.5s ease; }
     </style>
 </head>
 <body>
@@ -42,12 +99,10 @@
 
     <div id="balance-container">
         <span class="text-gray-400 text-[10px] uppercase block tracking-widest text-center">Your Balance</span>
-        <div class="text-gold text-2xl font-black text-center">
-            <span id="amount" class="counter-up">0</span> $SGOLD
+        <div class="text-gold text-3xl font-black text-center">
+            <span id="amount">0</span> $SGOLD
         </div>
     </div>
-
-    <h1 class="text-xl mt-8 text-center opacity-50 uppercase tracking-[0.3em]">Vault Access</h1>
 
     <script>
         let wallet = null;
@@ -59,7 +114,6 @@
         const balanceContainer = document.getElementById('balance-container');
         const amountDisplay = document.getElementById('amount');
 
-        // FONCTION DE COMPTEUR ANIMÉ (Jackpot Effect)
         function animateCounter(start, end, duration) {
             let startTimestamp = null;
             const step = (timestamp) => {
@@ -67,9 +121,7 @@
                 const progress = Math.min((timestamp - startTimestamp) / duration, 1);
                 const currentVal = Math.floor(progress * (end - start) + start);
                 amountDisplay.innerText = currentVal.toLocaleString();
-                if (progress < 1) {
-                    window.requestAnimationFrame(step);
-                }
+                if (progress < 1) window.requestAnimationFrame(step);
             };
             window.requestAnimationFrame(step);
         }
@@ -82,15 +134,15 @@
                         const resp = await provider.connect();
                         wallet = resp.publicKey.toString();
                         updateUI(); 
-                        status.innerText = "WALLET LINKED! CLICK TO ACTIVATE SENSORS";
+                        status.innerText = "CONNECTED! TAP ROBOT TO ACTIVATE SENSORS";
                         status.style.borderColor = "#FFD700"; status.style.color = "#FFD700";
-                    } catch(e) { status.innerText = "DENIED"; }
-                } else { alert("Open in Phantom Browser!"); }
+                    } catch(e) { status.innerText = "CONNECTION DENIED"; }
+                } else { alert("Please open inside Phantom Browser!"); }
             } else {
                 if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                     DeviceMotionEvent.requestPermission().then(state => {
                         if (state === 'granted') startMining();
-                    }).catch(e => alert("Please allow sensors"));
+                    }).catch(e => alert("Please allow motion sensors"));
                 } else {
                     startMining();
                 }
@@ -106,7 +158,7 @@
                 if (delta > 15) earn(); 
                 lastX = acc.x; lastY = acc.y;
             }, true);
-            status.innerText = "SENSORS LIVE! SHAKE IT! 🛡️";
+            status.innerText = "SENSORS LIVE! SHAKE YOUR PHONE! 🛡️";
             balanceContainer.style.display = "block";
         }
 
@@ -128,7 +180,7 @@
         async function earn() {
             if (isShaking) return;
             isShaking = true;
-            robot.classList.add('shake-anim', 'gold-active');
+            robot.classList.add('gold-active');
             status.innerText = "⚡ EXTRACTING GOLD...";
             
             try {
@@ -142,24 +194,20 @@
                 if (data.success) {
                     confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
                     status.innerText = "SUCCESS! +500 $SGOLD";
-
-                    // DÉCLENCHEMENT DU COMPTEUR ANIMÉ
                     const oldVal = parseInt(amountDisplay.innerText.replace(/,/g, '')) || 0;
-                    const newVal = data.total_earned;
-                    animateCounter(oldVal, newVal, 1500); // 1.5 seconde d'animation
-                    
+                    animateCounter(oldVal, data.total_earned, 1500);
                 } else {
                     status.innerText = data.message;
                     if (data.total_earned !== undefined) {
                         amountDisplay.innerText = data.total_earned.toLocaleString();
                     }
                 }
-            } catch (e) { status.innerText = "CONNECTION ERROR"; }
+            } catch (e) { status.innerText = "DATABASE ERROR"; }
 
             setTimeout(() => { 
                 isShaking = false; 
-                robot.classList.remove('shake-anim', 'gold-active'); 
-                if(!status.innerText.includes("SUCCESS")) status.innerText = "SHAKE IT!";
+                robot.classList.remove('gold-active'); 
+                if(!status.innerText.includes("SUCCESS")) status.innerText = "READY! SHAKE AGAIN";
             }, 3000);
         }
     </script>
