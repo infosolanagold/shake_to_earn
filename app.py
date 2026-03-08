@@ -8,15 +8,33 @@ app = Flask(__name__)
 CORS(app)
 
 # CONNEXION MONGODB
-MONGO_URI = os.environ.get('MONGODB_URI')
-client = MongoClient(MONGO_URI)
-db = client.sgold_database
-users_col = db.users
+try:
+    MONGO_URI = os.environ.get('MONGODB_URI')
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    db = client.sgold_database
+    users_col = db.users
+    client.admin.command('ping')
+    print("MongoDB Connected Successfully!")
+except Exception as e:
+    print(f"MongoDB Connection Error: {e}")
 
 @app.route('/')
 def home():
     return render_template('index.html')
 
+# --- NOUVELLE ROUTE POUR LE LEADERBOARD ---
+@app.route('/api/leaderboard', methods=['GET'])
+def get_leaderboard():
+    try:
+        # On récupère les 10 meilleurs, triés par total_earned décroissant
+        top_users = list(users_col.find({}, {"_id": 0, "wallet": 1, "total_earned": 1})
+                         .sort("total_earned", -1)
+                         .limit(10))
+        return jsonify(top_users)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --- LOGIQUE DE SHAKE ---
 @app.route('/api/shake-earn', methods=['POST'])
 def shake_earn():
     try:
@@ -29,25 +47,14 @@ def shake_earn():
 
         user = users_col.find_one({"wallet": wallet})
 
-        # Si l'utilisateur n'existe pas encore
         if not user:
-            if check_only:
-                return jsonify({"success": True, "total_earned": 0})
-            
-            # Création du premier profil
-            new_user = {
-                "wallet": wallet,
-                "last_shake": "",
-                "total_earned": 0
-            }
+            new_user = {"wallet": wallet, "last_shake": "", "total_earned": 0}
             users_col.insert_one(new_user)
             user = new_user
 
-        # Si c'est juste pour vérifier le solde (au chargement)
         if check_only:
             return jsonify({"success": True, "total_earned": user.get("total_earned", 0)})
 
-        # LOGIQUE DE SHAKE (24h)
         today_str = datetime.date.today().isoformat()
         if user.get("last_shake") == today_str:
             return jsonify({
@@ -56,19 +63,13 @@ def shake_earn():
                 "total_earned": user.get("total_earned", 0)
             })
 
-        # MISE À JOUR : +500 SGOLD
         reward = 500
         users_col.update_one(
             {"wallet": wallet},
-            {
-                "$set": {"last_shake": today_str},
-                "$inc": {"total_earned": reward}
-            }
+            {"$set": {"last_shake": today_str}, "$inc": {"total_earned": reward}}
         )
         
-        # Récupération du nouveau total
         updated_user = users_col.find_one({"wallet": wallet})
-        
         return jsonify({
             "success": True, 
             "amount": reward, 
@@ -76,5 +77,8 @@ def shake_earn():
         })
 
     except Exception as e:
-        print(f"Server Error: {e}")
-        return jsonify({"success": False, "message": "Database Error"}), 500
+        return jsonify({"success": False, "message": "Server error"}), 500
+
+if __name__ == "__main__":
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
