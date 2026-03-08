@@ -6,100 +6,44 @@
     <title>SGOLD VAULT | SHAKE TO EARN</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        /* Ajustement pour permettre le scroll vers le leaderboard */
         body { 
-            background: #000205; 
-            color: #fff; 
-            font-family: 'Orbitron', sans-serif; 
-            margin: 0;
-            padding: 0;
-            min-height: 100vh; 
-            min-height: 100svh; 
-            width: 100vw;
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            /* On utilise center pour le contenu initial, le scroll gérera le reste */
-            justify-content: flex-start; 
-            padding: env(safe-area-inset-top) 20px 40px 20px;
-            overflow-x: hidden;
-            overflow-y: auto; /* Permet de voir le leaderboard en dessous */
+            background: #000205; color: #fff; font-family: 'Orbitron', sans-serif; margin: 0; padding: 0;
+            min-height: 100vh; width: 100vw; display: flex; flex-direction: column; align-items: center; 
+            justify-content: flex-start; padding: env(safe-area-inset-top) 20px 40px 20px;
+            overflow-x: hidden; overflow-y: auto;
         }
 
-        /* Robot avec animations de la main page */
         .robot-glow { 
-            width: min(220px, 55vw); 
-            transition: 0.3s; 
-            cursor: pointer; 
-            margin: 40px 0;
-            border-radius: 50%;
-            border: 3px solid #FFD700;
-            overflow: hidden;
-            background: #000;
-            flex-shrink: 0;
-            animation: float 6s ease-in-out infinite, pulseGlow 2s infinite;
+            width: min(200px, 50vw); transition: 0.3s; cursor: pointer; margin: 30px 0;
+            border-radius: 50%; border: 3px solid #FFD700; overflow: hidden; background: #000;
+            flex-shrink: 0; animation: float 6s ease-in-out infinite, pulseGlow 2s infinite;
         }
-
         .gold-active { 
             filter: sepia(1) saturate(10) brightness(1.2) drop-shadow(0 0 40px #FFD700) !important; 
             animation: shake 0.1s infinite !important;
         }
         
-        @keyframes float {
-            0% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-15px) rotate(2deg); }
-            100% { transform: translateY(0px) rotate(0deg); }
-        }
-
-        @keyframes pulseGlow {
-            0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.3); transform: scale(1); }
-            50% { box-shadow: 0 0 35px rgba(255, 215, 0, 0.6); transform: scale(1.02); }
-        }
-
-        @keyframes shake { 
-            0% { transform: translate(3px, 3px); } 
-            50% { transform: translate(-3px, -3px); } 
-            100% { transform: translate(3px, -3px); } 
-        }
+        @keyframes float { 0%, 100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-15px) rotate(2deg); } }
+        @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.3); transform: scale(1); } 50% { box-shadow: 0 0 35px rgba(255, 215, 0, 0.6); transform: scale(1.02); } }
+        @keyframes shake { 0% { transform: translate(3px, 3px); } 50% { transform: translate(-3px, -3px); } 100% { transform: translate(3px, -3px); } }
         
         #status-badge { 
-            border: 1px solid #00F0FF; 
-            padding: 12px 24px; 
-            border-radius: 50px; 
-            color: #00F0FF; 
-            font-size: 10px; 
-            margin-top: 10px;
-            text-transform: uppercase; 
-            text-align: center; 
-            width: 100%;
-            max-width: 300px;
-            background: rgba(0, 240, 255, 0.05);
-            flex-shrink: 0;
+            border: 1px solid #00F0FF; padding: 12px 24px; border-radius: 50px; color: #00F0FF; 
+            font-size: 10px; margin-top: 10px; text-transform: uppercase; text-align: center; 
+            width: 100%; max-width: 320px; background: rgba(0, 240, 255, 0.05); flex-shrink: 0;
         }
         
         #balance-container { 
-            display: none; 
-            margin-bottom: 20px; 
-            border: 1px solid rgba(255, 215, 0, 0.3); 
-            padding: 15px 40px; 
-            border-radius: 20px; 
-            background: rgba(255, 215, 0, 0.1); 
-            width: 100%;
-            max-width: 320px;
-            flex-shrink: 0;
+            display: none; margin-bottom: 20px; border: 1px solid rgba(255, 215, 0, 0.3); 
+            padding: 20px; border-radius: 20px; background: rgba(255, 215, 0, 0.05); 
+            width: 100%; max-width: 350px; flex-shrink: 0; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
         }
 
-        /* Style spécifique pour le classement */
         #leaderboard-section {
-            width: 100%;
-            max-width: 350px;
-            margin-top: 30px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 20px;
-            padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            width: 100%; max-width: 350px; margin-top: 20px; background: rgba(255, 255, 255, 0.03);
+            border-radius: 20px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.05);
         }
     </style>
 </head>
@@ -110,14 +54,31 @@
     <img src="https://static.wixstatic.com/media/ec4b8d_846472666283449eaf02d0dcd16e78d7~mv2.jpg" id="robot" class="robot-glow">
 
     <div id="balance-container">
-        <span class="text-gray-400 text-[10px] uppercase block tracking-widest text-center">Your Balance</span>
-        <div class="text-gold text-3xl font-black text-center">
-            <span id="amount">0</span> $SGOLD
+        <span class="text-gray-400 text-[10px] uppercase block tracking-widest text-center mb-1">Off-Chain Mined Balance</span>
+        <div class="text-[#FFD700] text-4xl font-black text-center mb-4">
+            <span id="amount">0</span>
+        </div>
+        
+        <div class="mb-4">
+            <div class="flex justify-between items-end mb-1">
+                <span class="text-[8px] text-gray-500 uppercase font-bold tracking-wider">Airdrop Goal</span>
+                <span id="progress-text" class="text-[10px] text-white font-mono">0 / 5,000</span>
+            </div>
+            <div class="w-full bg-black rounded-full h-2 border border-gray-800 overflow-hidden">
+                <div id="progress-bar" class="bg-[#FFD700] h-2 rounded-full transition-all duration-700" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="bg-blue-900/20 border border-blue-500/30 p-3 rounded-lg text-center">
+            <p class="text-[9px] text-blue-300 uppercase leading-relaxed font-bold tracking-wide">
+                ⚠️ IMPORTANT RULES<br>
+                Mined $SGOLD is secured off-chain. Reach 5,000 to qualify. Real tokens are Airdropped to your Phantom Wallet every Sunday.
+            </p>
         </div>
     </div>
 
     <div id="leaderboard-section" style="display: none;">
-        <h2 class="text-gold text-center text-[12px] mb-4 tracking-[0.3em] font-bold">🏆 TOP GUARDIANS</h2>
+        <h2 class="text-[#FFD700] text-center text-[12px] mb-4 tracking-[0.3em] font-bold">🏆 TOP GUARDIANS</h2>
         <div id="leaderboard-list" class="space-y-2">
             </div>
     </div>
@@ -131,6 +92,26 @@
         const status = document.getElementById('status-badge');
         const balanceContainer = document.getElementById('balance-container');
         const amountDisplay = document.getElementById('amount');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+
+        // FONCTION DE MISE À JOUR DE LA BARRE D'OBJECTIF
+        function updateProgress(total) {
+            const target = 5000;
+            let displayTotal = total;
+            let percent = (displayTotal / target) * 100;
+            if (percent > 100) percent = 100;
+
+            progressBar.style.width = percent + '%';
+            
+            if (total >= target) {
+                progressBar.classList.replace('bg-[#FFD700]', 'bg-green-500');
+                progressText.innerHTML = `<span class="text-green-500 font-bold">ELIGIBLE FOR SUNDAY AIRDROP ✅</span>`;
+            } else {
+                progressBar.classList.replace('bg-green-500', 'bg-[#FFD700]');
+                progressText.innerText = total.toLocaleString() + ' / 5,000';
+            }
+        }
 
         async function loadLeaderboard() {
             try {
@@ -142,12 +123,13 @@
                 data.forEach((user, index) => {
                     let rankEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
                     let shortWallet = user.wallet.substring(0, 4) + '...' + user.wallet.substring(user.wallet.length - 4);
+                    let isEligible = user.total_earned >= 5000 ? '<span class="text-green-500 ml-1">✅</span>' : '';
                     
                     list.innerHTML += `
                         <div class="flex justify-between items-center bg-white/5 border border-white/10 p-3 rounded-lg">
-                            <span class="text-[10px] text-gray-400 font-bold w-8">${rankEmoji}</span>
+                            <span class="text-[10px] text-gray-400 font-bold w-6">${rankEmoji}</span>
                             <span class="text-[10px] text-white font-mono flex-1 ml-2">${shortWallet}</span>
-                            <span class="text-[10px] text-gold font-bold">${user.total_earned.toLocaleString()}</span>
+                            <span class="text-[10px] text-[#FFD700] font-bold">${user.total_earned.toLocaleString()}${isEligible}</span>
                         </div>
                     `;
                 });
@@ -162,6 +144,7 @@
                 const progress = Math.min((timestamp - startTimestamp) / duration, 1);
                 const currentVal = Math.floor(progress * (end - start) + start);
                 amountDisplay.innerText = currentVal.toLocaleString();
+                updateProgress(currentVal); // Met à jour la barre en même temps
                 if (progress < 1) window.requestAnimationFrame(step);
             };
             window.requestAnimationFrame(step);
@@ -214,6 +197,7 @@
                 const data = await res.json();
                 if (data.total_earned !== undefined) {
                     amountDisplay.innerText = data.total_earned.toLocaleString();
+                    updateProgress(data.total_earned);
                     balanceContainer.style.display = "block";
                     loadLeaderboard();
                 }
@@ -244,6 +228,7 @@
                     status.innerText = data.message;
                     if (data.total_earned !== undefined) {
                         amountDisplay.innerText = data.total_earned.toLocaleString();
+                        updateProgress(data.total_earned);
                     }
                 }
             } catch (e) { status.innerText = "DATABASE ERROR"; }
