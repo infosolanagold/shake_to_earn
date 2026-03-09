@@ -68,13 +68,6 @@
                 <div id="progress-bar" class="bg-[#FFD700] h-2 rounded-full transition-all duration-700" style="width: 0%"></div>
             </div>
         </div>
-
-        <div class="bg-blue-900/20 border border-blue-500/30 p-3 rounded-lg text-center">
-            <p class="text-[9px] text-blue-300 uppercase leading-relaxed font-bold tracking-wide">
-                ⚠️ IMPORTANT RULES<br>
-                Mined $SGOLD is secured off-chain. Reach 5,000 to qualify. Real tokens are Airdropped to your Phantom Wallet every Sunday.
-            </p>
-        </div>
     </div>
 
     <div id="leaderboard-section" style="display: none;">
@@ -95,7 +88,6 @@
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
 
-        // FONCTION DE MISE À JOUR DE LA BARRE D'OBJECTIF
         function updateProgress(total) {
             const target = 5000;
             let displayTotal = total;
@@ -123,122 +115,4 @@
                 data.forEach((user, index) => {
                     let rankEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
                     let shortWallet = user.wallet.substring(0, 4) + '...' + user.wallet.substring(user.wallet.length - 4);
-                    let isEligible = user.total_earned >= 5000 ? '<span class="text-green-500 ml-1">✅</span>' : '';
-                    
-                    list.innerHTML += `
-                        <div class="flex justify-between items-center bg-white/5 border border-white/10 p-3 rounded-lg">
-                            <span class="text-[10px] text-gray-400 font-bold w-6">${rankEmoji}</span>
-                            <span class="text-[10px] text-white font-mono flex-1 ml-2">${shortWallet}</span>
-                            <span class="text-[10px] text-[#FFD700] font-bold">${user.total_earned.toLocaleString()}${isEligible}</span>
-                        </div>
-                    `;
-                });
-                document.getElementById('leaderboard-section').style.display = 'block';
-            } catch (e) { console.error("Leaderboard error"); }
-        }
-
-        function animateCounter(start, end, duration) {
-            let startTimestamp = null;
-            const step = (timestamp) => {
-                if (!startTimestamp) startTimestamp = timestamp;
-                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                const currentVal = Math.floor(progress * (end - start) + start);
-                amountDisplay.innerText = currentVal.toLocaleString();
-                updateProgress(currentVal); // Met à jour la barre en même temps
-                if (progress < 1) window.requestAnimationFrame(step);
-            };
-            window.requestAnimationFrame(step);
-        }
-
-        robot.onclick = async () => {
-            if (!wallet) {
-                const provider = window.solana || (window.parent && window.parent.solana);
-                if (provider) {
-                    try {
-                        const resp = await provider.connect();
-                        wallet = resp.publicKey.toString();
-                        updateUI(); 
-                        status.innerText = "CONNECTED! TAP ROBOT FOR SENSORS";
-                        status.style.borderColor = "#FFD700"; status.style.color = "#FFD700";
-                    } catch(e) { status.innerText = "CONNECTION DENIED"; }
-                } else { alert("Please open inside Phantom Browser!"); }
-            } else {
-                if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                    DeviceMotionEvent.requestPermission().then(state => {
-                        if (state === 'granted') startMining();
-                    }).catch(e => alert("Please allow motion sensors"));
-                } else {
-                    startMining();
-                }
-            }
-        };
-
-        function startMining() {
-            window.addEventListener('devicemotion', (e) => {
-                if (isShaking) return;
-                let acc = e.accelerationIncludingGravity;
-                if (!acc) return;
-                let delta = Math.abs(acc.x - (lastX || acc.x)) + Math.abs(acc.y - (lastY || acc.y));
-                if (delta > 15) earn(); 
-                lastX = acc.x; lastY = acc.y;
-            }, true);
-            status.innerText = "SENSORS LIVE! SHAKE IT! 🛡️";
-            balanceContainer.style.display = "block";
-            loadLeaderboard();
-        }
-
-        async function updateUI() {
-            try {
-                const res = await fetch('/api/shake-earn', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ walletAddress: wallet, checkOnly: true })
-                });
-                const data = await res.json();
-                if (data.total_earned !== undefined) {
-                    amountDisplay.innerText = data.total_earned.toLocaleString();
-                    updateProgress(data.total_earned);
-                    balanceContainer.style.display = "block";
-                    loadLeaderboard();
-                }
-            } catch (e) { console.error("Update error"); }
-        }
-
-        async function earn() {
-            if (isShaking) return;
-            isShaking = true;
-            robot.classList.add('gold-active');
-            status.innerText = "⚡ EXTRACTING GOLD...";
-            
-            try {
-                const res = await fetch('/api/shake-earn', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ walletAddress: wallet })
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-                    status.innerText = "SUCCESS! +500 $SGOLD";
-                    const oldVal = parseInt(amountDisplay.innerText.replace(/,/g, '')) || 0;
-                    animateCounter(oldVal, data.total_earned, 1500);
-                    setTimeout(loadLeaderboard, 2000);
-                } else {
-                    status.innerText = data.message;
-                    if (data.total_earned !== undefined) {
-                        amountDisplay.innerText = data.total_earned.toLocaleString();
-                        updateProgress(data.total_earned);
-                    }
-                }
-            } catch (e) { status.innerText = "DATABASE ERROR"; }
-
-            setTimeout(() => { 
-                isShaking = false; 
-                robot.classList.remove('gold-active'); 
-                if(!status.innerText.includes("SUCCESS")) status.innerText = "READY! SHAKE AGAIN";
-            }, 3000);
-        }
-    </script>
-</body>
-</html>
+                    let is
