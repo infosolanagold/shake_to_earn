@@ -115,4 +115,136 @@
                 data.forEach((user, index) => {
                     let rankEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
                     let shortWallet = user.wallet.substring(0, 4) + '...' + user.wallet.substring(user.wallet.length - 4);
-                    let is
+                    let isEligible = user.total_earned >= 5000 ? '<span class="text-green-500 ml-1">✅</span>' : '';
+                    
+                    list.innerHTML += `
+                        <div class="flex justify-between items-center bg-white/5 border border-white/10 p-3 rounded-lg">
+                            <span class="text-[10px] text-gray-400 font-bold w-6">${rankEmoji}</span>
+                            <span class="text-[10px] text-white font-mono flex-1 ml-2">${shortWallet}</span>
+                            <span class="text-[10px] text-[#FFD700] font-bold">${user.total_earned.toLocaleString()}${isEligible}</span>
+                        </div>
+                    `;
+                });
+                document.getElementById('leaderboard-section').style.display = 'block';
+            } catch (e) { console.error("Leaderboard error"); }
+        }
+
+        function animateCounter(start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const currentVal = Math.floor(progress * (end - start) + start);
+                amountDisplay.innerText = currentVal.toLocaleString();
+                updateProgress(currentVal); 
+                if (progress < 1) window.requestAnimationFrame(step);
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        robot.onclick = async () => {
+            if (!wallet) {
+                const provider = window.solana || (window.parent && window.parent.solana);
+                if (provider) {
+                    try {
+                        const resp = await provider.connect();
+                        wallet = resp.publicKey.toString();
+                        updateUI(); 
+                        status.innerText = "CONNECTED! TAP ROBOT FOR SENSORS";
+                        status.style.borderColor = "#FFD700"; status.style.color = "#FFD700";
+                    } catch(e) { status.innerText = "CONNECTION DENIED"; }
+                } else { 
+                    status.innerText = "OPEN IN PHANTOM APP"; 
+                    status.style.borderColor = "red"; status.style.color = "red";
+                }
+            } else {
+                status.innerText = "ÉTAPE 1 : ACTIVATION...";
+                
+                if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                    status.innerText = "ÉTAPE 2 : PERMISSION iOS...";
+                    try {
+                        const state = await DeviceMotionEvent.requestPermission();
+                        if (state === 'granted') {
+                            startMining();
+                        } else {
+                            status.innerText = "❌ ACCÈS REFUSÉ PAR LE TÉLÉPHONE";
+                        }
+                    } catch (e) {
+                        status.innerText = "❌ ERREUR: " + e.message;
+                    }
+                } else {
+                    status.innerText = "ÉTAPE 2 : ANDROID DÉTECTÉ...";
+                    startMining();
+                }
+            }
+        };
+
+        function startMining() {
+            window.addEventListener('devicemotion', (e) => {
+                if (isShaking) return;
+                let acc = e.accelerationIncludingGravity;
+                if (!acc) return;
+                let delta = Math.abs(acc.x - (lastX || acc.x)) + Math.abs(acc.y - (lastY || acc.y));
+                if (delta > 15) earn(); 
+                lastX = acc.x; lastY = acc.y;
+            }, true);
+            status.innerText = "SENSORS LIVE! SHAKE IT! 🛡️";
+            balanceContainer.style.display = "block";
+            loadLeaderboard();
+        }
+
+        async function updateUI() {
+            try {
+                const res = await fetch('/api/shake-earn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ walletAddress: wallet, checkOnly: true })
+                });
+                const data = await res.json();
+                if (data.total_earned !== undefined) {
+                    amountDisplay.innerText = data.total_earned.toLocaleString();
+                    updateProgress(data.total_earned);
+                    balanceContainer.style.display = "block";
+                    loadLeaderboard();
+                }
+            } catch (e) { console.error("Update error"); }
+        }
+
+        async function earn() {
+            if (isShaking) return;
+            isShaking = true;
+            robot.classList.add('gold-active');
+            status.innerText = "⚡ EXTRACTING GOLD...";
+            
+            try {
+                const res = await fetch('/api/shake-earn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ walletAddress: wallet })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                    status.innerText = "SUCCESS! +500 $SGOLD";
+                    const oldVal = parseInt(amountDisplay.innerText.replace(/,/g, '')) || 0;
+                    animateCounter(oldVal, data.total_earned, 1500);
+                    setTimeout(loadLeaderboard, 2000);
+                } else {
+                    status.innerText = data.message;
+                    if (data.total_earned !== undefined) {
+                        amountDisplay.innerText = data.total_earned.toLocaleString();
+                        updateProgress(data.total_earned);
+                    }
+                }
+            } catch (e) { status.innerText = "DATABASE ERROR"; }
+
+            setTimeout(() => { 
+                isShaking = false; 
+                robot.classList.remove('gold-active'); 
+                if(!status.innerText.includes("SUCCESS")) status.innerText = "READY! SHAKE AGAIN";
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
