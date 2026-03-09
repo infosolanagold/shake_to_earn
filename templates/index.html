@@ -158,24 +158,24 @@
                     status.style.borderColor = "red"; status.style.color = "red";
                 }
             } else {
-                status.innerText = "ÉTAPE 1 : ACTIVATION...";
+                status.innerText = "STEP 1: ACTIVATING...";
                 
                 if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                    status.innerText = "ÉTAPE 2 : PERMISSION iOS...";
+                    status.innerText = "STEP 2: iOS PERMISSION...";
                     try {
                         const state = await DeviceMotionEvent.requestPermission();
                         if (state === 'granted') {
                             startMining();
                         } else {
-                            status.innerText = "❌ ACCÈS REFUSÉ";
-                            alert("Accès refusé par le téléphone ❌.\n\nSur iPhone : Va dans Réglages > Safari > Active 'Accès aux mouvements et à l'orientation'.\n\nSi tu as cliqué sur 'Refuser' avant, va dans les paramètres de Phantom > Applications de confiance > Supprime ce site et recommence.");
+                            status.innerText = "❌ ACCESS DENIED";
+                            alert("Phone access denied ❌.\n\nOn iPhone: Go to Settings > Safari > Turn on 'Motion & Orientation Access'.\n\nIf you previously clicked 'Deny', go to Phantom Settings > Trusted Apps > Revoke this site and try again.");
                         }
                     } catch (e) {
-                        status.innerText = "❌ ERREUR CAPTEUR";
-                        alert("Erreur du capteur: " + e.message + ". Assure-toi d'utiliser le navigateur Phantom.");
+                        status.innerText = "❌ SENSOR ERROR";
+                        alert("Sensor error: " + e.message + ". Make sure you are using the Phantom browser.");
                     }
                 } else {
-                    status.innerText = "ÉTAPE 2 : ANDROID DÉTECTÉ...";
+                    status.innerText = "STEP 2: ANDROID DETECTED...";
                     startMining();
                 }
             }
