@@ -167,10 +167,12 @@
                         if (state === 'granted') {
                             startMining();
                         } else {
-                            status.innerText = "❌ ACCÈS REFUSÉ PAR LE TÉLÉPHONE";
+                            status.innerText = "❌ ACCÈS REFUSÉ";
+                            alert("Accès refusé par le téléphone ❌.\n\nSur iPhone : Va dans Réglages > Safari > Active 'Accès aux mouvements et à l'orientation'.\n\nSi tu as cliqué sur 'Refuser' avant, va dans les paramètres de Phantom > Applications de confiance > Supprime ce site et recommence.");
                         }
                     } catch (e) {
-                        status.innerText = "❌ ERREUR: " + e.message;
+                        status.innerText = "❌ ERREUR CAPTEUR";
+                        alert("Erreur du capteur: " + e.message + ". Assure-toi d'utiliser le navigateur Phantom.");
                     }
                 } else {
                     status.innerText = "ÉTAPE 2 : ANDROID DÉTECTÉ...";
