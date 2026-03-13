@@ -45,6 +45,11 @@
             width: 100%; max-width: 350px; margin-top: 20px; background: rgba(255, 255, 255, 0.03);
             border-radius: 20px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.05);
         }
+
+        /* Custom Scrollbar for Modal */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 215, 0, 0.3); border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -76,12 +81,70 @@
             </div>
     </div>
 
-    <div class="mt-8 mb-6 w-full max-w-[350px]">
+    <div class="mt-8 mb-2 w-full max-w-[350px]">
+        <button onclick="document.getElementById('help-modal').style.display='flex'" class="flex items-center justify-center gap-2 py-3 px-6 rounded-full bg-white/5 border border-white/10 hover:border-[#FFD700] transition-all duration-300 group cursor-pointer text-gray-400 hover:text-white w-full text-[10px] uppercase tracking-widest font-mono">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#FFD700]"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            Troubleshooting Guide
+        </button>
+    </div>
+
+    <div class="mb-6 w-full max-w-[350px]">
         <a href="mailto:support@solanagold.co" class="flex items-center justify-center gap-3 py-3 px-6 rounded-full bg-white/5 border border-white/10 hover:border-[#00F0FF] transition-all duration-300 group cursor-pointer text-gray-400 hover:text-white w-full">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00F0FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="group-hover:animate-pulse"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
             <span class="text-[11px] uppercase tracking-[0.15em] font-mono">support@solanagold.co</span>
         </a>
     </div>
+
+    <div id="help-modal" class="fixed inset-0 bg-black/95 z-[9999] hidden flex-col items-center justify-center p-4 backdrop-blur-md" onclick="this.style.display='none'">
+        <div class="bg-[#0B1221] border border-[#FFD700]/30 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden shadow-[0_0_30px_rgba(255,215,0,0.1)] relative" onclick="event.stopPropagation()">
+            
+            <div class="flex justify-between items-center p-4 border-b border-white/10 bg-black/50">
+                <h3 class="text-[#FFD700] font-bold text-sm tracking-widest flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                    TROUBLESHOOTING
+                </h3>
+                <button onclick="document.getElementById('help-modal').style.display='none'" class="text-gray-400 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <div class="p-5 overflow-y-auto space-y-6 text-left font-sans text-sm custom-scrollbar">
+                
+                <div>
+                    <h4 class="text-white font-bold mb-1 flex items-center gap-2">🍎 1. iPhone: Shaking Does Nothing</h4>
+                    <p class="text-gray-400 text-xs leading-relaxed">Apple blocks motion sensors by default. If shaking does nothing:<br>
+                    1. Open iPhone <b>Settings</b> > <b>Safari</b>.<br>
+                    2. Go to "Privacy & Security".<br>
+                    3. Turn <b>ON</b> "Motion & Orientation Access".<br>
+                    <span class="text-yellow-500/80 italic">Note: If you clicked "Deny" earlier, go to Phantom Settings > Trusted Apps > Revoke SGOLD Vault, and reconnect.</span></p>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-bold mb-1 flex items-center gap-2">🌐 2. Wallet Won't Connect</h4>
+                    <p class="text-gray-400 text-xs leading-relaxed">Regular browsers (Chrome/Safari) often block Web3 sensors.<br>
+                    <b>Fix:</b> You must play inside the Phantom App browser. Open Phantom, tap the Globe icon 🌐, and paste our link there.</p>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-bold mb-1 flex items-center gap-2">⏳ 3. Points Not Adding Fast Enough</h4>
+                    <p class="text-gray-400 text-xs leading-relaxed">Shaking violently but only getting points slowly?<br>
+                    <b>Feature, not a bug!</b> We have a 3-second anti-spam cooldown. Shake once, wait for "SUCCESS", then shake again.</p>
+                </div>
+
+                <div>
+                    <h4 class="text-white font-bold mb-1 flex items-center gap-2">👻 4. "Ghost Balance" (Score Reset)</h4>
+                    <p class="text-gray-400 text-xs leading-relaxed">If your score resets after refreshing, the server didn't save it.<br>
+                    <b>Fix:</b> Ensure stable Wi-Fi/5G. If you see "DATABASE ERROR", stop shaking and try later. Always wait for the "SUCCESS!" message before leaving.</p>
+                </div>
+
+            </div>
+            
+            <div class="p-4 border-t border-white/10 text-center bg-black/50">
+                <button onclick="document.getElementById('help-modal').style.display='none'" class="bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-6 rounded-full text-xs transition-colors">CLOSE GUIDE</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let wallet = null;
         let isShaking = false;
