@@ -53,6 +53,9 @@
     <script>
         lucide.createIcons();
         let adminPassword = "";
+        
+        // Remplace cette URL par ton lien Render exact si tu héberges ce HTML ailleurs
+        const API_URL = "https://shake-to-earn.onrender.com";
 
         function login() {
             const pass = document.getElementById('admin-pass').value;
@@ -66,7 +69,7 @@
 
         async function loadData() {
             try {
-                const res = await fetch('/api/leaderboard');
+                const res = await fetch(`${API_URL}/api/leaderboard`);
                 const users = await res.json();
                 
                 const eligibleList = document.getElementById('eligible-list');
@@ -118,7 +121,7 @@
             if(!confirm("Are you sure you have paid this user? This will reset their balance to 0.")) return;
 
             try {
-                const res = await fetch('/api/admin/reset-user', {
+                const res = await fetch(`${API_URL}/api/admin/reset-user`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password: adminPassword, wallet: wallet })
